@@ -1,0 +1,138 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects Project[]
+
+  @@map("users")
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  path        String // Local path to the project
+  language    String? // Primary programming language
+  framework   String? // Framework used (React, Vue, etc.)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Indexing status
+  isIndexed      Boolean   @default(false)
+  indexingStatus String    @default("pending") // pending, indexing, completed, failed
+  lastIndexedAt  DateTime?
+
+  // Statistics
+  totalFiles   Int @default(0)
+  indexedFiles Int @default(0)
+  totalLines   Int @default(0)
+
+  // Relations
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  files        ProjectFile[]
+  chatSessions ChatSession[]
+
+  @@map("projects")
+}
+
+model ProjectFile {
+  id        String   @id @default(cuid())
+  path      String // Relative path within the project
+  name      String // File name
+  extension String? // File extension
+  size      Int // File size in bytes
+  lines     Int // Number of lines
+  content   String? // File content (for smaller files)
+  hash      String // Content hash for change detection
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Indexing
+  isIndexed     Boolean   @default(false)
+  vectorId      String? // Upstash Vector ID
+  lastIndexedAt DateTime?
+
+  // Relations
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  chunks FileChunk[]
+
+  @@unique([projectId, path])
+  @@map("project_files")
+}
+
+model FileChunk {
+  id        String   @id @default(cuid())
+  content   String // Chunk content
+  startLine Int // Starting line number
+  endLine   Int // Ending line number
+  vectorId  String // Upstash Vector ID
+  createdAt DateTime @default(now())
+
+  // Relations
+  fileId String
+  file   ProjectFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@map("file_chunks")
+}
+
+model ChatSession {
+  id        String   @id @default(cuid())
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  messages ChatMessage[]
+
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  role      String // user, assistant, system
+  content   String
+  metadata  String? // JSON metadata (function calls, etc.)
+  createdAt DateTime @default(now())
+
+  // Relations
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("chat_messages")
+}
+
+model AIProvider {
+  id          String   @id @default(cuid())
+  name        String   @unique // openai, anthropic, google, openrouter
+  displayName String
+  apiKey      String?
+  baseUrl     String?
+  isEnabled   Boolean  @default(false)
+  config      String? // JSON configuration
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("ai_providers")
+}
