@@ -3,7 +3,13 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { FolderOpen, Loader2, Code } from 'lucide-react'
 
@@ -77,23 +83,21 @@ export function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: Cr
     }
   }
 
-  if (!open) return null
-
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-lg mx-4 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-slate-200/50 dark:border-slate-700/50 shadow-2xl">
-        <CardHeader className="text-center pb-6">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-full max-w-lg bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-slate-200/50 dark:border-slate-700/50 shadow-2xl">
+        <DialogHeader className="text-center pb-6">
           <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4">
             <Code className="w-6 h-6 text-white" />
           </div>
-          <CardTitle className="text-2xl bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
+          <DialogTitle className="text-2xl bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
             Create New Project
-          </CardTitle>
-          <CardDescription className="text-slate-600 dark:text-slate-400">
+          </DialogTitle>
+          <DialogDescription className="text-slate-600 dark:text-slate-400">
             Add a new code project to index and analyze with AI
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-0">
+          </DialogDescription>
+        </DialogHeader>
+        <div className="pt-0">
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
               <div className="text-sm text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/50 p-4 rounded-lg border border-red-200 dark:border-red-800">
@@ -196,8 +200,8 @@ export function CreateProjectDialog({ open, onOpenChange, onProjectCreated }: Cr
               </Button>
             </div>
           </form>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }

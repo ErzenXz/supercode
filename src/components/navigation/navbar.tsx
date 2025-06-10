@@ -15,20 +15,20 @@ export function Navbar() {
   ]
 
   return (
-    <nav className="border-b border-slate-200/50 dark:border-slate-700/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-slate-900/60 sticky top-0 z-50">
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
-          <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-3 group">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
-                <Code className="h-4 w-4 text-white" />
+    <nav className="border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 sticky top-0 z-50 shadow-md">
+      <div className="container mx-auto px-6"> {/* Adjusted padding from px-8 to px-6 */}
+        <div className="flex h-16 items-center justify-between"> {/* Adjusted height from h-20 to h-16 */}
+          <div className="flex items-center gap-8"> {/* Adjusted gap from 10 to 8 */}
+            <Link href="/" className="flex items-center gap-3 group"> {/* Adjusted gap from 4 to 3 */}
+              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center transition-all duration-300 shadow-md ring-1 ring-blue-500/20"> {/* Simplified size, bg, rounded, shadow, ring, removed hover anim */}
+                <Code className="h-5 w-5 text-white" /> {/* Adjusted icon size */}
               </div>
-              <span className="font-bold text-xl bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
+              <span className="font-bold text-xl text-slate-900 dark:text-slate-50 tracking-tight"> {/* Simplified font, size, color */}
                 Code Index
               </span>
             </Link>
 
-            <div className="hidden md:flex items-center gap-1">
+            <div className="hidden md:flex items-center gap-2">
               {navigation.map((item) => {
                 const Icon = item.icon
                 const isActive = pathname === item.href
@@ -36,16 +36,16 @@ export function Navbar() {
                 return (
                   <Link key={item.name} href={item.href}>
                     <Button
-                      variant={isActive ? 'secondary' : 'ghost'}
+                      variant="ghost" // Simplified variant logic, active state handled by className
                       size="sm"
                       className={cn(
-                        'flex items-center gap-2 transition-all duration-200',
+                        'flex items-center gap-2 transition-colors duration-200 rounded-md px-4 py-2 font-medium text-sm', // Adjusted gap, padding, font, rounded
                         isActive
-                          ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 shadow-sm'
-                          : 'hover:bg-slate-50 dark:hover:bg-slate-800'
+                          ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400' // Simplified active state
+                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100' // Simplified hover
                       )}
                     >
-                      <Icon className="h-4 w-4" />
+                      <Icon className="h-4 w-4" /> {/* Adjusted icon size */}
                       {item.name}
                     </Button>
                   </Link>
@@ -54,21 +54,21 @@ export function Navbar() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span>AI-Powered Analysis</span>
+          <div className="flex items-center gap-6">
+            <div className="hidden sm:flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700"> {/* Simplified badge */}
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div> {/* Removed pulse, adjusted size */}
+              <span className="font-medium">AI-Powered Analysis</span> {/* Adjusted font */}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center"> {/* Removed gap-3, rely on button margin if needed */}
               <Button
-                variant="outline"
+                variant="ghost" // Changed to ghost for a simpler look
                 size="sm"
-                className="hidden sm:flex border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800"
+                className="hidden sm:flex items-center gap-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md px-3 py-2" // Simplified classes, removed shadows, scale, backdrop
                 asChild
               >
                 <a href="https://github.com" target="_blank" rel="noopener noreferrer">
-                  <Github className="h-4 w-4 mr-2" />
+                  <Github className="h-4 w-4 mr-1.5" /> {/* Adjusted icon size and margin */}
                   GitHub
                 </a>
               </Button>

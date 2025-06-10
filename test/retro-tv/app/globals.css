@@ -1,0 +1,75 @@
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600&family=Press+Start+2P&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 0, 0, 0;
+  --background-end-rgb: 0, 0, 0;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(to bottom, transparent, rgb(var(--background-end-rgb))) rgb(var(--background-start-rgb));
+}
+
+@keyframes static {
+  0% {
+    background-position: 0 0, 0 0;
+    transform: translate(1px, 1px) scale(1.02);
+  }
+  20% {
+    background-position: -20px 10px, 10px -20px;
+  }
+  40% {
+    background-position: 20px -10px, -10px 20px;
+  }
+  60% {
+    background-position: 10px 20px, 20px 10px;
+  }
+  80% {
+    background-position: -10px -20px, -20px -10px;
+  }
+  100% {
+    background-position: 0 0, 0 0;
+    transform: translate(-1px, -1px) scale(1.0);
+  }
+}
+
+.animate-static {
+  animation: static 0.07s infinite linear alternate;
+}
+
+.text-shadow-sm {
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+}
+
+/* Prevent YouTube controls from showing */
+iframe {
+  pointer-events: none !important;
+}
+
+/* Add this to your globals.css file */
+@keyframes scan {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-scan {
+  animation: scan 2s linear infinite;
+}

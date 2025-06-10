@@ -1,11 +1,12 @@
 import { ProjectChatPage } from '@/components/projects/project-chat-page'
 
 interface ProjectPageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
-export default function ProjectPage({ params }: ProjectPageProps) {
-  return <ProjectChatPage projectId={params.id} />
+export default async function ProjectPage({ params }: ProjectPageProps) {
+  const { id } = await params
+  return <ProjectChatPage projectId={id} />
 }

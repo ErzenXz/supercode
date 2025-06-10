@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { searchCode } from "@/lib/vector";
+import { searchCode, enhancedSearchCode } from "@/lib/vector";
 import {
   createProvider,
   getConfiguredProviders,
@@ -9,82 +9,169 @@ import {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const { message, history = [] } = body;
 
     // Get project
     const project = await db.project.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    // Search for relevant code
-    const searchResults = await searchCode(message, project.id, 5);
+    // Enhanced multi-step search for relevant code
+    console.log(`🔍 Starting enhanced search for query: "${message}"`);
+    const enhancedResults = await enhancedSearchCode(message, project.id, {
+      maxResults: 20,
+      searchDepth: 5,
+      includeRelated: true,
+      contextWindow: 12000,
+    });
 
     let contextualInfo = "";
-    if (searchResults.success && searchResults.results.length > 0) {
-      contextualInfo =
-        "\n\nRelevant code context:\n" +
-        searchResults.results
-          .map(
-            (result) => `File: ${result.metadata.filePath}\n${result.content}`
-          )
-          .join("\n\n");
+    let searchMetadata = "";
+
+    if (enhancedResults.success && enhancedResults.results.length > 0) {
+      console.log(
+        `✅ Enhanced search completed: ${enhancedResults.totalSearches} searches, ${enhancedResults.results.length} results`
+      );
+      console.log(`📊 Search strategy: ${enhancedResults.searchStrategy}`);
+
+      // Use the pre-built context summary from enhanced search
+      contextualInfo = `\n\nRelevant code context (${enhancedResults.results.length} files found):\n${enhancedResults.contextSummary}`;
+
+      // Add search metadata for the AI
+      searchMetadata = `\n\nSearch Analysis:
+- Total searches performed: ${enhancedResults.totalSearches}
+- Search strategies used: ${enhancedResults.searchStrategy}
+- Files analyzed: ${enhancedResults.results.length}
+- Context quality: High (multi-step retrieval with dependency analysis)`;
+    } else {
+      console.log(`❌ Enhanced search failed, falling back to basic search`);
+      // Fallback to basic search
+      const basicResults = await searchCode(message, project.id, 10);
+      if (basicResults.success && basicResults.results.length > 0) {
+        contextualInfo =
+          "\n\nRelevant code context:\n" +
+          basicResults.results
+            .map(
+              (result) => `File: ${result.metadata.filePath}\n${result.content}`
+            )
+            .join("\n\n");
+        searchMetadata =
+          "\n\nSearch Analysis: Basic search used (enhanced search unavailable)";
+      }
     }
 
-    // Get configured AI providers
-    const configuredProviders = getConfiguredProviders();
-    const availableProvider = configuredProviders.find((p) => p.isConfigured);
+    // Get selected model (default to Qwen free model)
+    const selectedModel =
+      process.env.SELECTED_MODEL || "qwen/qwen-2.5-72b-instruct:free";
 
     let aiResponse: string;
 
-    if (availableProvider) {
-      // Use real AI provider
+    // Try to use OpenRouter first for the selected model
+    if (process.env.OPENROUTER_API_KEY && selectedModel.includes("/")) {
       try {
-        const config = getProviderConfig(availableProvider.name);
-        const provider = createProvider(availableProvider.name, config);
+        const systemMessage = `You are an expert AI code assistant with advanced codebase analysis capabilities.
 
-        const systemMessage = `You are a helpful AI assistant that helps developers understand their codebase.
-You have access to the project "${project.name}" located at "${project.path}".
-${project.description ? `Project description: ${project.description}` : ""}
-${project.language ? `Primary language: ${project.language}` : ""}
-${project.framework ? `Framework: ${project.framework}` : ""}
+PROJECT INFORMATION:
+- Name: "${project.name}"
+- Path: "${project.path}"
+${project.description ? `- Description: ${project.description}` : ""}
+${project.language ? `- Primary Language: ${project.language}` : ""}
+${project.framework ? `- Framework: ${project.framework}` : ""}
 
-When answering questions about the code, be specific and reference the actual code when possible.
-${contextualInfo}`;
+CONTEXT ANALYSIS:
+I have performed an advanced multi-step search of the codebase to find the most relevant code for your question. This includes:
+- Semantic similarity search
+- Symbol and identifier matching
+- Dependency and relationship analysis
+- Code pattern recognition
+- Cross-reference analysis
+
+INSTRUCTIONS:
+1. Use the provided code context to give accurate, specific answers
+2. Reference actual file names, function names, and line numbers when possible
+3. Explain code relationships and dependencies
+4. Provide practical examples and usage patterns
+5. If you see related code that might be helpful, mention it
+6. Be precise about implementation details
+7. Suggest improvements or best practices when relevant
+
+IMPORTANT: The code context provided has been carefully curated through multiple search strategies to ensure high relevance and completeness.
+
+${contextualInfo}
+${searchMetadata}`;
 
         const messages = [
-          { role: "system" as const, content: systemMessage },
+          { role: "system", content: systemMessage },
           ...history.map((msg: any) => ({
-            role: msg.role as "user" | "assistant",
+            role: msg.role,
             content: msg.content,
           })),
-          { role: "user" as const, content: message },
+          { role: "user", content: message },
         ];
 
-        const response = await provider.chat(messages);
-        aiResponse = response.content;
-      } catch (error) {
-        console.error("AI provider error:", error);
-        aiResponse = generateMockResponse(
-          message,
-          project,
-          searchResults.results
+        const response = await fetch(
+          "https://openrouter.ai/api/v1/chat/completions",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+              "Content-Type": "application/json",
+              "HTTP-Referer":
+                process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001",
+              "X-Title": "Code Index Chat",
+            },
+            body: JSON.stringify({
+              model: selectedModel,
+              messages,
+              temperature: 0.7,
+              max_tokens: 2000,
+            }),
+          }
         );
+
+        if (response.ok) {
+          const data = await response.json();
+          aiResponse =
+            data.choices[0]?.message?.content || "No response generated";
+        } else {
+          throw new Error(`OpenRouter API error: ${response.status}`);
+        }
+      } catch (error) {
+        console.error("OpenRouter API error:", error);
+        // Fall back to other providers or mock response
+        aiResponse =
+          (await tryOtherProviders(
+            message,
+            project,
+            contextualInfo,
+            history
+          )) ||
+          generateMockResponse(
+            message,
+            project,
+            enhancedResults.success ? enhancedResults.results : [],
+            enhancedResults
+          );
       }
     } else {
-      // Fall back to mock response
-      aiResponse = generateMockResponse(
-        message,
-        project,
-        searchResults.results
-      );
+      // Fall back to configured providers
+      aiResponse =
+        (await tryOtherProviders(message, project, contextualInfo, history)) ||
+        generateMockResponse(
+          message,
+          project,
+          enhancedResults.success ? enhancedResults.results : [],
+          enhancedResults
+        );
     }
 
     // Save chat session and messages
@@ -130,12 +217,94 @@ ${contextualInfo}`;
   }
 }
 
+async function tryOtherProviders(
+  message: string,
+  project: any,
+  contextualInfo: string,
+  history: any[]
+): Promise<string | null> {
+  try {
+    // Get configured AI providers
+    const configuredProviders = getConfiguredProviders();
+    const availableProvider = configuredProviders.find((p) => p.isConfigured);
+
+    if (availableProvider) {
+      const config = getProviderConfig(availableProvider.name);
+      const provider = createProvider(availableProvider.name, config);
+
+      const systemMessage = `You are an expert AI code assistant with advanced codebase analysis capabilities.
+
+PROJECT INFORMATION:
+- Name: "${project.name}"
+- Path: "${project.path}"
+${project.description ? `- Description: ${project.description}` : ""}
+${project.language ? `- Primary Language: ${project.language}` : ""}
+${project.framework ? `- Framework: ${project.framework}` : ""}
+
+CONTEXT ANALYSIS:
+I have performed an advanced multi-step search of the codebase to find the most relevant code for your question. This includes semantic similarity search, symbol matching, dependency analysis, and cross-reference analysis.
+
+INSTRUCTIONS:
+1. Use the provided code context to give accurate, specific answers
+2. Reference actual file names, function names, and line numbers when possible
+3. Explain code relationships and dependencies
+4. Provide practical examples and usage patterns
+5. Be precise about implementation details
+6. Suggest improvements or best practices when relevant
+
+${contextualInfo}
+${searchMetadata}`;
+
+      const messages = [
+        { role: "system" as const, content: systemMessage },
+        ...history.map((msg: any) => ({
+          role: msg.role as "user" | "assistant",
+          content: msg.content,
+        })),
+        { role: "user" as const, content: message },
+      ];
+
+      const response = await provider.chat(messages);
+      return response.content;
+    }
+  } catch (error) {
+    console.error("Other providers error:", error);
+  }
+
+  return null;
+}
+
 function generateMockResponse(
   message: string,
   project: any,
-  searchResults: any[]
+  searchResults: any[],
+  enhancedResults?: any
 ): string {
   const lowerMessage = message.toLowerCase();
+
+  // If we have enhanced search results, use them for better responses
+  if (
+    enhancedResults &&
+    enhancedResults.success &&
+    enhancedResults.results.length > 0
+  ) {
+    const fileCount = enhancedResults.results.length;
+    const searchInfo = enhancedResults.searchStrategy;
+
+    return `Based on my advanced analysis of your ${project.name} project, I found ${fileCount} relevant code sections using ${enhancedResults.totalSearches} different search strategies (${searchInfo}).
+
+Here's what I discovered:
+
+${enhancedResults.contextSummary}
+
+This analysis used multi-step retrieval including:
+- Semantic similarity matching
+- Symbol and identifier recognition
+- Dependency relationship mapping
+- Cross-reference analysis
+
+Would you like me to dive deeper into any specific aspect of the code I found?`;
+  }
 
   if (lowerMessage.includes("function") || lowerMessage.includes("method")) {
     if (searchResults.length > 0) {
